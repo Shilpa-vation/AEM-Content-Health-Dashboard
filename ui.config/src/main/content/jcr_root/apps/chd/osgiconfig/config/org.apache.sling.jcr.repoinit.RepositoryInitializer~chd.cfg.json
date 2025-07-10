@@ -1,0 +1,20 @@
+{
+  "scripts": [
+    "create service user chd-service-user",
+    "create path (sling:Folder) /home/users/system/chd",
+    "create service user chd-service-user with path /home/users/system/chd",
+    "set ACL for chd-service-user",
+    "  allow jcr:read on /content/chd",
+    "  allow jcr:read on /apps/chd",
+    "  allow jcr:read on /libs/granite",
+    "  allow jcr:read on /conf/chd",
+    "  allow jcr:read,rep:write on /var/chd",
+    "end",
+    "create path (sling:OrderedFolder) /content/dam/chd",
+    "create path (nt:unstructured) /content/dam/chd/jcr:content",
+    "set properties on /content/dam/chd/jcr:content",
+    "  set cq:conf{String} to /conf/chd",
+    "  set jcr:title{String} to \"Content Health Dashboard\"",
+    "end"
+  ]
+}

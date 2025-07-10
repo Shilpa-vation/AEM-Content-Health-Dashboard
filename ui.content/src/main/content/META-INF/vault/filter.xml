@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workspaceFilter version="1.0">
+    <filter root="/conf/chd" mode="merge"/>
+    <filter root="/content/chd" mode="merge"/>
+    <filter root="/content/dam/chd" mode="merge">
+        <exclude pattern="/content/dam/chd(/.*)?"/>
+        <include pattern="/content/dam/chd/jcr:content(/.*)?"/>
+    </filter>
+    <filter root="/content/dam/chd/asset.jpg" mode="merge"/>
+    <filter root="/content/experience-fragments/chd" mode="merge"/>
+</workspaceFilter>
