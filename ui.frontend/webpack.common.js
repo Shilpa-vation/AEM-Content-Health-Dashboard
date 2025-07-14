@@ -10,7 +10,10 @@ const ESLintPlugin = require('eslint-webpack-plugin');
 const SOURCE_ROOT = __dirname + '/src/main/webpack';
 
 const resolve = {
-    extensions: ['.js', '.ts'],
+    alias: {
+        '@': path.resolve(__dirname, 'src'),
+    },
+    extensions: ['.js', '.jsx', '.ts', '.tsx', '.json', '.svg'],
     plugins: [new TSConfigPathsPlugin({
         configFile: './tsconfig.json'
     })]
@@ -30,19 +33,26 @@ module.exports = {
     module: {
         rules: [
             {
-                test: /\.tsx?$/,
+                test: /\.(js|jsx)$/,
                 exclude: /node_modules/,
-                use: [
-                    {
-                        loader: 'ts-loader'
-                    },
-                    {
-                        loader: 'glob-import-loader',
-                        options: {
-                            resolve: resolve
-                        }
+                use: {
+                    loader: 'babel-loader',
+                    options: {
+                        presets: [
+                            '@babel/preset-env',
+                            '@babel/preset-react'
+                        ]
                     }
-                ]
+                }
+            },
+            {
+                test: /\.svg$/,
+                issuer: /\.[jt]sx?$/,
+                use: ['@svgr/webpack'],
+            },
+            {
+                test: /\.(png|jpe?g|gif|svg)$/i,
+                type: 'asset/resource',
             },
             {
                 test: /\.scss$/,
