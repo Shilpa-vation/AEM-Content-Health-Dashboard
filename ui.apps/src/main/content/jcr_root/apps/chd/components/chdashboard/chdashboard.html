@@ -1,2 +1,9 @@
 <div class="ch-dashboard">
 </div>
+
+<div data-sly-use.dashboard="com.chd.core.models.DashboardModel">
+
+ <tr data-sly-list="${dashboard.report.pages}">
+ ${item.path}
+ </tr>
+</div>
