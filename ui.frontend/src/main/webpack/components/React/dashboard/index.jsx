@@ -19,15 +19,16 @@ const initialContentWidgets = [
 ];
 
 const status = [
-  { name: 'Critical', color: 0 },
-  { name: 'Warning', color: 0 },
-  { name: 'Minor', color: 0 },
+  { name: 'Error', color: 0 },
+  { name: 'Warn', color: 0 },
+  { name: 'Low', color: 0 },
 ]
 
 const types = [
   { name: 'Metadata', color: 0 },
   { name: 'SEO', color: 0 },
   { name: 'Audit', color: 0 },
+  { name: 'Workflow', color: 0 },
 ]
 
 export default function Dashboard() {
@@ -79,7 +80,7 @@ export default function Dashboard() {
         let count = 0;
 
         if (widget.key === 'totalIssues') {
-          count = data.pages?.length || 0;
+          count = data.issueCount || 0;
         } else {
           count = data[widget.key] || 0;
         }
@@ -183,7 +184,7 @@ export default function Dashboard() {
               <div className="ch-dashboard__content-filters">
                 <div className="select-warper">
                   <select className="form-control select" onChange={(e) => handleFilter("type", e.target.value)}>
-                    <option value="all">All</option>
+                    <option value="all">All Types</option>
                     {types?.map((type, index) => (
                       <option key={index} value={type.name}>{type.name}</option>
                     ))}
@@ -191,7 +192,7 @@ export default function Dashboard() {
                 </div>
                 <div className="select-warper">
                   <select className="form-control select" onChange={(e) => handleFilter("status", e.target.value)}>
-                    <option value="all">All</option>
+                    <option value="all">All Status</option>
                     {status?.map((item, index) => (
                       <option key={index} value={item.name}>{item.name}</option>
                     ))}
