@@ -16,7 +16,7 @@ export default function Grid({rowData}) {
                         <td><a style={{ fontWeight: 700 }} target="_blank" href={item.path}>{item.path}</a></td>
                         <td>{item.issue}</td>
                         <td style={{textTransform:"capitalize"}}>{item.type}</td>
-                        <td><span className={`badge badge--${item?.status?.toLowerCase() === "warn" ? "warning" : item?.status?.toLowerCase() === "critical" ? "critical" : "minor"}`}>{item.status}</span></td>
+                        <td><span className={`badge badge--${item?.status?.toLowerCase() === "warn" ? "warn" : item?.status?.toLowerCase() === "error" ? "error" : "low"}`}>{item.status}</span></td>
                     </tr>
                 ))}
             </tbody>
