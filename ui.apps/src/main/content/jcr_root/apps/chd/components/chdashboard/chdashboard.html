@@ -100,3 +100,10 @@ coral-status[variant="error"] {
     </tbody>
   </table>
 </div>
+
+<div data-sly-use.dashboard="com.chd.core.models.DashboardModel">
+
+ <tr data-sly-list="${dashboard.report.pages}">
+ ${item.path}
+ </tr>
+</div>
