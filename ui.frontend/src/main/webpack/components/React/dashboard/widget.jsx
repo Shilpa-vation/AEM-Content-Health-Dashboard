@@ -1,6 +1,5 @@
 import React from "react";
 export default function Widget({key, name, count, icon}) {
-    console.log(icon)
     return (
         <div key={key} class="ch-dashboard__widget">
             <div class="ch-dashboard__widget-icon">
