@@ -33,6 +33,7 @@ import javax.servlet.Servlet;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -57,7 +58,7 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
  
     private static final Logger logger = LoggerFactory.getLogger(ContentHealthAuditServlet.class);
  
-    private static final String ROOT_PATH = "/content/chd";
+    private static final String ROOT_PATH = "/content/chd/us/en/my-account";
     private static final String DAM_ROOT_PATH = "/content/dam";
     private static final long STALE_DAYS = 180;
     private static final long MAX_IMAGE_SIZE = 2_000_000;
@@ -76,6 +77,8 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         List<Map<String, Object>> pages = new ArrayList<>();
         List<Map<String, Object>> widges = new ArrayList<>();
         Map<String, Object> assetAnalysis = new HashMap<>();
+        String formattedDate = StringUtils.EMPTY;
+        Runtime runtime = Runtime.getRuntime();
  
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             logger.info("Inside resolver");
@@ -95,6 +98,11 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
                     List<Map<String, String>> issues = new ArrayList<>();
                     String path = page.getPath();
                     String pageTitle = page.getTitle();
+                    Calendar modifiedDate = props.get("cq:lastModified", Calendar.class);
+                    Calendar createdDate = props.get("jcr:created", Calendar.class);
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                    sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+                    formattedDate = modifiedDate != null ? sdf.format(modifiedDate.getTime()) : sdf.format(createdDate.getTime());
                     checkMetadata(props, issues);
                     checkSEO(props, issues);
                     checkAudit(props, issues);
@@ -106,6 +114,7 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
                     Map<String, Object> pageReport = new HashMap<>();
                     pageReport.put("path", path);
                     pageReport.put("title",pageTitle);
+                    pageReport.put("lastModified", formattedDate);
                     pageReport.put("issues", issues);
                     pages.add(pageReport);
                 }
@@ -123,6 +132,9 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         widgetReport.put("issueCount",ISSUE_COUNT);
         widgetReport.put("replicationQItems",getQueueCount());
         widgetReport.put("activeWorkflowCount",getActiveWorkflowCount(resolver));
+        widgetReport.put("maxHeapSize",runtime.maxMemory()/(1024*1024) +" MB");         // Maximum heap size (-Xmx)
+        widgetReport.put( "totalHeapSize",runtime.totalMemory()/(1024*1024) +" MB");     // Current allocated heap
+        widgetReport.put("freeHeapSize",runtime.freeMemory()/(1024*1024) +" MB"); 
         widges.add(widgetReport);
         report.put("site", ROOT_PATH);
         report.put("damSitePath",DAM_ROOT_PATH);
