@@ -5,7 +5,7 @@
     xmlns:nt="http://www.jcp.org/jcr/nt/1.0" 
     jcr:primaryType="cq:Page">
     <jcr:content cq:deviceGroups="[/etc/mobile/groups/responsive]" 
-        cq:template="/conf/chd/settings/wcm/templates/category-page"
+        cq:template="/conf/chd/settings/wcm/templates/chdtemplate"
         jcr:primaryType="cq:PageContent"
         sling:resourceType="chd/components/page">
         <root jcr:primaryType="nt:unstructured" 

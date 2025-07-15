@@ -26,11 +26,17 @@ const initialWidgets = [
 ];
 
 const status = [
-  { name: 'Critical', color: 0 },
-  { name: 'Warning', color: 0 },
-  { name: 'Minor', color: 0 },
+  { name: 'Error', color: 0 },
+  { name: 'Warn', color: 0 },
+  { name: 'Low', color: 0 },
 ]
 
+const types = [
+  { name: 'Metadata', color: 0 },
+  { name: 'SEO', color: 0 },
+  { name: 'Audit', color: 0 },
+  { name: 'Workflow', color: 0 },
+]
 
 export default function Dashboard() {
   const [tabActive, setTabActive] = React.useState('content');
@@ -105,7 +111,7 @@ export default function Dashboard() {
         let count = 0;
 
         if (widget.key === 'totalIssues') {
-          count = tabActive === "content" ? data.pages?.length : data.assets?.issueCount || 0;
+          count = tabActive === "content" ? data.issueCount || 0 : data.assets?.issueCount || 0;
         } else {
           count = data[widget.key] || 0;
         }
