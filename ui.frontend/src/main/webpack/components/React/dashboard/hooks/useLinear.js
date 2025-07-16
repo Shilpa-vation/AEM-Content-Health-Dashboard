@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 
 export default function useLinear(data = []) {
-    console.log("useLinear", data);
   const linears = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) return [];
 
@@ -40,8 +39,5 @@ export default function useLinear(data = []) {
           : '#4CAF50',
     }));
   }, [data]);
-
-  console.log("linears", linears)
-
   return linears;
 }

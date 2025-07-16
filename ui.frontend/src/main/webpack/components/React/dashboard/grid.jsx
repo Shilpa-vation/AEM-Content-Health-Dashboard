@@ -1,23 +1,28 @@
 import React from "react";
+import { formatDate } from './uttils/common';
 export default function Grid({ rowData, tabActive }) {
     return (
         <table className="table">
             <thead>
                 <tr>
-                    <th>{`${tabActive === "content" ? "Page" : "Asset"} Path`}</th>
+                    <th>{`${tabActive === "sites" ? "Page" : "Asset"} Path`}</th>
                     <th>Issue</th>
                     <th>Type</th>
-                    <th>Last Modified</th>
-                    <th style={{ width: "150px" }}>Status</th>
+                    {tabActive === "sites" && <th>Last Modified</th>}
+                    <th style={{ width: "85px" }}>Status</th>
+                    <th style={{ width: "0px" }}></th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody className="scrollable-tbody">
                 {rowData && rowData?.map((item, index) => (
                     <tr key={index}>
-                        <td><a style={{ fontWeight: 700 }} target="_blank" href={item.path}>{item.path}</a></td>
+                        <td><a className="grid-title-link" target="_blank" href={item.path}>{item.title}</a></td>
                         <td>{item.issue}</td>
-                        <td style={{textTransform:"capitalize"}}>{item.type}</td>
-                        <td><span className={`badge badge--${item?.status?.toLowerCase() === "warn" ? "warn" : item?.status?.toLowerCase() === "error" ? "error" : "low"}`}>{item.status}</span></td>
+                        <td style={{ textTransform: "capitalize" }}>{item.type}</td>
+                        {tabActive === "sites" && <td>{formatDate(item.lastModified)}</td>}
+
+                        <td><span className={`badge badge--${item?.status?.toLowerCase()}`}>{item.status}</span></td>
+                        <td><a target="_blank" href={item.path} className="grid-action"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#6D159F"><path d="m243-240-51-51 405-405H240v-72h480v480h-72v-357L243-240Z" /></svg></a></td>
                     </tr>
                 ))}
                 {rowData.length === 0 && (
