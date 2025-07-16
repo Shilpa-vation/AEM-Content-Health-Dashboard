@@ -5,6 +5,7 @@ import Grid from "./grid";
 import Linear from "./linear";
 import './dashboard.scss';
 import Select from "./select";
+import { Chart } from "./chart";
 import { formatDateTime } from "./uttils/common";
 
 const initialWidgets = [
@@ -16,7 +17,7 @@ const initialWidgets = [
   { id: 6, name: 'Failed Workflow', key: 'failedWorkflowCount', icon: <path d="M640-240v-80h104L536-526 376-366 80-664l56-56 240 240 160-160 264 264v-104h80v240H640Z" /> },
   { id: 7, name: 'Total Assets', key: 'totalAssets', icon: <path d="M360-440h400L622-620l-92 120-62-80-108 140ZM120-120q-33 0-56.5-23.5T40-200v-520h80v520h680v80H120Zm160-160q-33 0-56.5-23.5T200-360v-440q0-33 23.5-56.5T280-880h200l80 80h280q33 0 56.5 23.5T920-720v360q0 33-23.5 56.5T840-280H280Zm0-80h560v-360H527l-80-80H280v440Zm0 0v-440 440Z" /> },
   { id: 8, name: 'Replication Queue', key: 'replicationQItems', icon: <path d="M160-120q-33 0-56.5-23.5T80-200v-280h80v280h360v80H160Zm160-160q-33 0-56.5-23.5T240-360v-280h80v280h360v80H320Zm160-160q-33 0-56.5-23.5T400-520v-240q0-33 23.5-56.5T480-840h320q33 0 56.5 23.5T880-760v240q0 33-23.5 56.5T800-440H480Zm0-80h320v-160H480v160Z" /> },
-  { id: 9, name: 'Unpublished Sites', key: 'unpublishedPages', icon: <path d="M819-28 701-146q-48 32-103.5 49T480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-62 17-117.5T146-701L27-820l57-57L876-85l-57 57ZM480-160q45 0 85.5-12t76.5-33L487-360l-63 64-170-170 56-56 114 114 7-8-226-226q-21 36-33 76.5T160-480q0 133 93.5 226.5T480-160Zm335-100-59-59q21-35 32.5-75.5T800-480q0-133-93.5-226.5T480-800q-45 0-85.5 11.5T319-756l-59-59q48-31 103.5-48T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 61-17 116.5T815-260ZM602-474l-56-56 104-104 56 56-104 104Zm-64-64ZM424-424Z" /> }
+  { id: 9, name: 'Recent Page Count', key: 'recentPageCount', icon: <path d="M480-120q-75 0-140.5-28.5t-114-77q-48.5-48.5-77-114T120-480q0-75 28.5-140.5t77-114q48.5-48.5 114-77T480-840q82 0 155.5 35T760-706v-94h80v240H600v-80h110q-41-56-101-88t-129-32q-117 0-198.5 81.5T200-480q0 117 81.5 198.5T480-200q105 0 183.5-68T756-440h82q-15 137-117.5 228.5T480-120Zm112-192L440-464v-216h80v184l128 128-56 56Z"/> }
 ];
 
 const days = [
@@ -70,7 +71,7 @@ export default function Dashboard() {
 
       const assetsData = data?.assets?.issues?.map(asset => ({
         title: asset?.title || '',
-        path: `${window.location.origin}/editor.html${asset.path}.html`,
+        path: `${window.location.origin}/assetdetails.html${asset.path}`,
         type: asset?.type || 'unknown',
         issue: Array.isArray(asset?.messages) && asset.messages.length > 0
           ? asset.messages.join(', ')
@@ -166,7 +167,7 @@ export default function Dashboard() {
     setRowData(filtered);
   };
 
-
+ console.log("rawData",rawData)
 
   return (
     <>
@@ -186,7 +187,22 @@ export default function Dashboard() {
               ))}
             </div>
             <div className="center">
-               center
+              <div className="ch-dashboard__widget">
+                <div className="ch-dashboard__widget-content">
+                  <p className="type">Heap Memory usage</p>
+                  <div className="chart">
+                    <div className="chart__circle">
+                      <Chart used={parseInt(rawData.widges?.[0].totalHeapSize)}
+                        total={parseInt(rawData.widges?.[0].maxHeapSize)} />
+                    </div>
+                    <div className="chart__content">
+                      <p>Total<span>{rawData.widges?.[0].maxHeapSize}</span></p>
+                      <p>Used<span>{rawData.widges?.[0].totalHeapSize}</span></p>
+                      <p>Free<span>{rawData.widges?.[0].freeHeapSize}</span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="right">
               <div className="ch-dashboard__widget">

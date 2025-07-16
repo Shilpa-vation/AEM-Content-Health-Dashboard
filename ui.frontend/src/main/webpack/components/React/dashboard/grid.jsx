@@ -5,7 +5,7 @@ export default function Grid({ rowData, tabActive }) {
         <table className="table">
             <thead>
                 <tr>
-                    <th>{`${tabActive === "sites" ? "Page" : "Asset"} Path`}</th>
+                    <th>{`${tabActive === "sites" ? "Page" : "Asset"} Name`}</th>
                     <th>Issue</th>
                     <th>Type</th>
                     {tabActive === "sites" && <th>Last Modified</th>}
