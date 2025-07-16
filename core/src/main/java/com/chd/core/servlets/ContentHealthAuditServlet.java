@@ -7,6 +7,7 @@ import com.adobe.granite.workflow.exec.Workflow;
 import com.adobe.granite.workflow.exec.WorkflowData;
 import com.day.cq.dam.api.Asset;
 import com.day.cq.dam.api.Rendition;
+import com.day.cq.dam.commons.util.AssetReferenceSearch;
 import com.day.cq.replication.Agent;
 import com.day.cq.replication.AgentManager;
 import com.day.cq.replication.ReplicationQueue;
@@ -25,8 +26,13 @@ import org.apache.sling.api.resource.*;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
- 
+
+import javax.jcr.Node;
 import javax.jcr.Session;
+import javax.jcr.query.Query;
+import javax.jcr.query.QueryManager;
+import javax.jcr.query.QueryResult;
+import javax.jcr.query.RowIterator;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import javax.servlet.Servlet;
@@ -37,7 +43,8 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
- 
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
  
@@ -62,9 +69,11 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
     private static final String DAM_ROOT_PATH = "/content/dam";
     private static final long STALE_DAYS = 180;
     private static final long MAX_IMAGE_SIZE = 2_000_000;
-    private int UNPUBLISHED_PAGES_COUNT = 0;
-    private int TOTAL_PAGES_COUNT = 0;
-    private int ISSUE_COUNT = 0;
+    private int UNPUBLISHED_PAGES_COUNT;
+    private int TOTAL_PAGES_COUNT;
+    private int ISSUE_COUNT;
+    private long recentPageCount = 0;
+    private long recentAssetCount = 0;
  
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
  
@@ -79,7 +88,8 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         Map<String, Object> assetAnalysis = new HashMap<>();
         String formattedDate = StringUtils.EMPTY;
         Runtime runtime = Runtime.getRuntime();
- 
+        Session session = resolver.adaptTo(Session.class);
+        initializaVar();
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             logger.info("Inside resolver");
             PageManager pageManager = resolver.adaptTo(PageManager.class);
@@ -110,7 +120,7 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
                     checkWorkflow(resolver,content, issues);
                     assetAnalysis = analyzeAssets(resolver);
  
- 
+                    getRecentPageCount(session,recentPageCount,recentAssetCount);
                     Map<String, Object> pageReport = new HashMap<>();
                     pageReport.put("path", path);
                     pageReport.put("title",pageTitle);
@@ -135,6 +145,8 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         widgetReport.put("maxHeapSize",runtime.maxMemory()/(1024*1024) +" MB");         // Maximum heap size (-Xmx)
         widgetReport.put( "totalHeapSize",runtime.totalMemory()/(1024*1024) +" MB");     // Current allocated heap
         widgetReport.put("freeHeapSize",runtime.freeMemory()/(1024*1024) +" MB"); 
+        widgetReport.put("recentPageCount", recentPageCount);
+        widgetReport.put("recentAssetCount", recentAssetCount);
         widges.add(widgetReport);
         report.put("site", ROOT_PATH);
         report.put("damSitePath",DAM_ROOT_PATH);
@@ -146,6 +158,12 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         response.getWriter().write(gson.toJson(report));
+    }
+
+    private void initializaVar(){
+        UNPUBLISHED_PAGES_COUNT = 0;
+        TOTAL_PAGES_COUNT = 0;
+        ISSUE_COUNT = 0;
     }
  
     private void checkMetadata(ValueMap props, List<Map<String, String>> issues) {
@@ -177,16 +195,27 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         }
     }
  
-    private void checkLinks(Resource content, CloseableHttpClient httpClient, ResourceResolver resolver, List<Map<String, String>> issues) {
-        content.getChildren().forEach(comp -> {
-            comp.getValueMap().forEach((key, value) -> {
-                if (value instanceof String && (key.contains("href") || key.contains("src"))) {
-                    String url = (String) value;
+   private void checkLinks(Resource resource, CloseableHttpClient httpClient,
+                                 ResourceResolver resolver, List<Map<String, String>> issues) {
+
+        if (resource == null) return;
+
+        // Check current resource's properties
+        ValueMap props = resource.getValueMap();
+        for (Map.Entry<String, Object> entry : props.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+
+            if (value instanceof String) {
+                String url = (String) value;
+                if ((key.contains("href") || key.contains("src") || key.contains("link") || key.contains("fileReference"))) {
                     if (url.startsWith("http")) {
                         try {
                             HttpHead request = new HttpHead(url);
                             int status = httpClient.execute(request).getStatusLine().getStatusCode();
-                            if (status >= 400) addIssue(issues, "links", "Broken external link: " + url, "ERROR");
+                            if (status >= 400) {
+                                addIssue(issues, "links", "Broken external link: " + url, "ERROR");
+                            }
                         } catch (Exception e) {
                             addIssue(issues, "links", "Broken link (exception): " + url, "ERROR");
                         }
@@ -194,9 +223,15 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
                         addIssue(issues, "links", "Broken internal reference: " + url, "ERROR");
                     }
                 }
-            });
-        });
+            }
+        }
+
+        // Recurse into children
+        for (Resource child : resource.getChildren()) {
+            checkLinks(child, httpClient, resolver, issues);
+        }
     }
+
  
     private void checkWorkflow(ResourceResolver resolver,Resource content, List<Map<String, String>> issues) {
     try {
@@ -223,16 +258,26 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         Map<String, Map<String, Object>> assetIssueMap = new HashMap<>();
         Map<String, Integer> formatCounts = new HashMap<>();
         Set<String> seenNames = new HashSet<>();
+        List<Asset> staleAssets = new ArrayList<>();
     
         Resource damRoot = resolver.getResource(DAM_ROOT_PATH);
         if (damRoot == null) return assetReport;
     
         traverseAssets(damRoot, assetIssueMap, formatCounts, seenNames);
-    
-        assetReport.put("issues", new ArrayList<>(assetIssueMap.values()));
+        findUnreferencedAssets(resolver.getResource(DAM_ROOT_PATH),resolver,staleAssets);
+
+        List<Map<String, Object>> filteredIssues = new ArrayList<>();
+        for (Map<String, Object> entry : assetIssueMap.values()) {
+            List<String> messages = (List<String>) entry.get("messages");
+            if (messages != null && !messages.isEmpty()) {
+                filteredIssues.add(entry);
+            }
+        }
+        assetReport.put("issues", filteredIssues);
+        assetReport.put("issueCount", filteredIssues.size());
         assetReport.put("formatCounts", formatCounts);
         assetReport.put("totalAssets", seenNames.size());
-        assetReport.put("issueCount", assetIssueMap.size());
+        assetReport.put("staleAssets", staleAssets.size());
     
         return assetReport;
     }
@@ -242,56 +287,74 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
                             Map<String, Integer> formatCounts,
                             Set<String> seenNames) {
  
-    for (Resource child : resource.getChildren()) {
-        Asset asset = child.adaptTo(Asset.class);
-        if (asset != null) {
-            String name = asset.getName();
-            String path = asset.getPath();
-            String mimeType = asset.getMimeType();
-            Rendition original = asset.getRendition("original");
-            String alt = asset.getMetadataValue("dc:description");
- 
-            // Set up issue entry if not already present
-            Map<String, Object> issueEntry = assetIssueMap.computeIfAbsent(path, p -> {
-                Map<String, Object> entry = new HashMap<>();
-                entry.put("path", p);
-                entry.put("type", "assets");
-                entry.put("messages", new ArrayList<String>());
-                entry.put("status", "WARN"); // Can be upgraded to dynamic severity later
-                return entry;
-            });
- 
-            List<String> messages = (List<String>) issueEntry.get("messages");
- 
-            // Check for large asset
-            if (original != null) {
-                long size = original.getSize();
-                if (size > MAX_IMAGE_SIZE) {
-                    messages.add("Large asset (" + (size / 1024) + " KB)");
+        for (Resource child : resource.getChildren()) {
+            Asset asset = child.adaptTo(Asset.class);
+            if (asset != null) {
+                String name = asset.getName();
+                String path = asset.getPath();
+                String mimeType = asset.getMimeType();
+                Rendition original = asset.getRendition("original");
+                String alt = asset.getMetadataValue("dc:description");
+    
+                // Set up issue entry if not already present
+                Map<String, Object> issueEntry = assetIssueMap.computeIfAbsent(path, p -> {
+                    Map<String, Object> entry = new HashMap<>();
+                    entry.put("path", p);
+                    entry.put("title",name);
+                    entry.put("type", "assets");
+                    entry.put("messages", new ArrayList<String>());
+                    entry.put("status", "WARN"); // Can be upgraded to dynamic severity later
+                    return entry;
+                });
+    
+                List<String> messages = (List<String>) issueEntry.get("messages");
+    
+                // Check for large asset
+                if (original != null) {
+                    long size = original.getSize();
+                    if (size > MAX_IMAGE_SIZE) {
+                        messages.add("Large asset (" + (size / 1024) + " KB)");
+                    }
                 }
+    
+                // Format count
+                String format = mimeType != null ? mimeType.substring(mimeType.lastIndexOf("/") + 1) : "unknown";
+                formatCounts.merge(format.toLowerCase(), 1, Integer::sum);
+    
+                // Missing alt text
+                if (StringUtils.isBlank(alt)) {
+                    messages.add("Missing alt text");
+                }
+    
+                // Duplicate asset name
+                if (!seenNames.add(name)) {
+                    messages.add("Duplicate asset name: " + name);
+                }
+    
+            } else {
+                // Recurse into folder
+                traverseAssets(child, assetIssueMap, formatCounts, seenNames);
             }
- 
-            // Format count
-            String format = mimeType != null ? mimeType.substring(mimeType.lastIndexOf("/") + 1) : "unknown";
-            formatCounts.merge(format.toLowerCase(), 1, Integer::sum);
- 
-            // Missing alt text
-            if (StringUtils.isBlank(alt)) {
-                messages.add("Missing alt text");
-            }
- 
-            // Duplicate asset name
-            if (!seenNames.add(name)) {
-                messages.add("Duplicate asset name: " + name);
-            }
- 
-        } else {
-            // Recurse into folder
-            traverseAssets(child, assetIssueMap, formatCounts, seenNames);
         }
     }
-}
- 
+
+    public void findUnreferencedAssets(Resource damRoot,ResourceResolver resolver,List<Asset> staleAssets) {
+        for (Resource assetRes : damRoot.getChildren()) {
+            Asset asset = assetRes.adaptTo(Asset.class);
+            if (asset != null) {
+                AssetReferenceSearch search = new AssetReferenceSearch(assetRes.adaptTo(Node.class), ROOT_PATH, resolver);
+                Map<String, Asset> refs = search.search();
+                if (refs.isEmpty()) {
+                    staleAssets.add(asset);
+                }
+            } else {
+                // Recurse into folder
+                findUnreferencedAssets(assetRes,resolver,staleAssets);
+            }
+        }
+    }
+
+    
     public int getQueueCount() {
         Agent agent = agentManager.getAgents().get("publish");
         if (agent != null && agent.isEnabled() && agent.isValid()) {
@@ -334,6 +397,32 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
             e.printStackTrace();
             return -1;
         }
+    }
+
+    public void getRecentPageCount(Session session,long recentPageCount,long recentAssetCount) throws Exception {
+        QueryManager qm = session.getWorkspace().getQueryManager();
+
+        Calendar yesterday = Calendar.getInstance();
+        yesterday.add(Calendar.HOUR, -24);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+        String dateStr = sdf.format(yesterday.getTime());
+
+        String pageQueryStr = "SELECT * FROM [cq:PageContent] AS page " +
+                        "WHERE page.[jcr:created] >= CAST('" + dateStr + "' AS DATE) " +
+                        "AND ISDESCENDANTNODE(page, '/content/chd')";
+
+        Query pageQuery = qm.createQuery(pageQueryStr, Query.JCR_SQL2);
+        QueryResult pageResult = pageQuery.execute();
+        RowIterator pageRows = pageResult.getRows();
+        // String assetQueryStr = "SELECT * FROM [dam:AssetContent] AS asset " +
+        //               "WHERE asset.[jcr:created] >= CAST('" + dateStr + "' AS DATE) " +
+        //               "AND ISDESCENDANTNODE(asset, '/content/dam/chd')";
+
+        // Query assetQuery = qm.createQuery(assetQueryStr, Query.JCR_SQL2);
+        // QueryResult assResult = assetQuery.execute();
+        // RowIterator assRows = assResult.getRows();
+        recentPageCount = pageRows.getSize();
+        // recentAssetCount = assRows.getSize();
     }
 
     private void addIssue(List<Map<String, String>> issues, String type, String message, String status) {
