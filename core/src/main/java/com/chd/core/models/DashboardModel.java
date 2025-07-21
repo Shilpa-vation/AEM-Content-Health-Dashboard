@@ -245,7 +245,7 @@ public class DashboardModel {
     return assetReport;
 }
 
-private void traverseAssets(Resource resource,
+    private void traverseAssets(Resource resource,
                             Map<String, Map<String, Object>> assetIssueMap,
                             Map<String, Integer> formatCounts,
                             Set<String> seenNames) {
@@ -300,13 +300,6 @@ private void traverseAssets(Resource resource,
     }
 }
 
-    // private void addIssue(List<Map<String, String>> issues, String type, String message, String status) {
-    //     Map<String, String> issue = new HashMap<>();
-    //     issue.put("type", type);
-    //     issue.put("message", message);
-    //     issue.put("status", status);
-    //     issues.add(issue);
-    // }
 
     private void addIssue(Map<String, List<Map<String, String>>> issues, String type, String message, String status) {
     Map<String, String> detail = new HashMap<>();

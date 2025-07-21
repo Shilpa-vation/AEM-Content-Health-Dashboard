@@ -3,8 +3,8 @@ package com.chd.core.servlets;
 import com.adobe.granite.workflow.WorkflowException;
 import com.adobe.granite.workflow.WorkflowSession;
 import com.adobe.granite.workflow.exec.WorkItem;
-import com.adobe.granite.workflow.exec.Workflow;
 import com.adobe.granite.workflow.exec.WorkflowData;
+import com.chd.core.config.CHDConfig;
 import com.day.cq.dam.api.Asset;
 import com.day.cq.dam.api.Rendition;
 import com.day.cq.dam.commons.util.AssetReferenceSearch;
@@ -13,7 +13,6 @@ import com.day.cq.replication.AgentManager;
 import com.day.cq.replication.ReplicationQueue;
 import com.day.cq.wcm.api.Page;
 import com.day.cq.wcm.api.PageManager;
-import com.day.cq.workflow.status.WorkflowStatus;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.commons.lang3.StringUtils;
@@ -24,7 +23,9 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.*;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
+import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Modified;
 import org.osgi.service.component.annotations.Reference;
 
 import javax.jcr.Node;
@@ -43,7 +44,6 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,8 +65,8 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
  
     private static final Logger logger = LoggerFactory.getLogger(ContentHealthAuditServlet.class);
  
-    private static final String ROOT_PATH = "/content/chd/us/en/my-account";
-    private static final String DAM_ROOT_PATH = "/content/dam";
+    private String ROOT_PATH;
+    private String DAM_ROOT_PATH ;
     private static final long STALE_DAYS = 180;
     private static final long MAX_IMAGE_SIZE = 2_000_000;
     private int UNPUBLISHED_PAGES_COUNT;
@@ -74,6 +74,14 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
     private int ISSUE_COUNT;
     private long recentPageCount = 0;
     private long recentAssetCount = 0;
+
+    @Activate
+    @Modified
+    protected void activate(CHDConfig config) {
+        this.ROOT_PATH = config.contentRootPath();
+        this.DAM_ROOT_PATH = config.assetRootPath();
+    }
+
  
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
  
@@ -93,8 +101,7 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             logger.info("Inside resolver");
             PageManager pageManager = resolver.adaptTo(PageManager.class);
-           Page root = pageManager.getPage(ROOT_PATH);
- 
+            Page root = pageManager.getPage(ROOT_PATH);
             if (root != null) {
                 Iterator<Page> pageIterator = root.listChildren(null, true);
                 while (pageIterator.hasNext()) {
@@ -120,7 +127,7 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
                     checkWorkflow(resolver,content, issues);
                     assetAnalysis = analyzeAssets(resolver);
  
-                    getRecentPageCount(session,recentPageCount,recentAssetCount);
+                    
                     Map<String, Object> pageReport = new HashMap<>();
                     pageReport.put("path", path);
                     pageReport.put("title",pageTitle);
@@ -145,8 +152,13 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         widgetReport.put("maxHeapSize",runtime.maxMemory()/(1024*1024) +" MB");         // Maximum heap size (-Xmx)
         widgetReport.put( "totalHeapSize",runtime.totalMemory()/(1024*1024) +" MB");     // Current allocated heap
         widgetReport.put("freeHeapSize",runtime.freeMemory()/(1024*1024) +" MB"); 
-        widgetReport.put("recentPageCount", recentPageCount);
-        widgetReport.put("recentAssetCount", recentAssetCount);
+        try {
+            widgetReport.put("recentPageCount",  getRecentPageCount(session,recentPageCount));
+            widgetReport.put("recentAssetCount",  getRecentAssetCount(session,recentAssetCount));
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
         widges.add(widgetReport);
         report.put("site", ROOT_PATH);
         report.put("damSitePath",DAM_ROOT_PATH);
@@ -399,7 +411,7 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         }
     }
 
-    public void getRecentPageCount(Session session,long recentPageCount,long recentAssetCount) throws Exception {
+    public long getRecentPageCount(Session session,long recentPageCount) throws Exception {
         QueryManager qm = session.getWorkspace().getQueryManager();
 
         Calendar yesterday = Calendar.getInstance();
@@ -414,15 +426,26 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         Query pageQuery = qm.createQuery(pageQueryStr, Query.JCR_SQL2);
         QueryResult pageResult = pageQuery.execute();
         RowIterator pageRows = pageResult.getRows();
-        // String assetQueryStr = "SELECT * FROM [dam:AssetContent] AS asset " +
-        //               "WHERE asset.[jcr:created] >= CAST('" + dateStr + "' AS DATE) " +
-        //               "AND ISDESCENDANTNODE(asset, '/content/dam/chd')";
+        return pageRows.getSize();
+    }
 
-        // Query assetQuery = qm.createQuery(assetQueryStr, Query.JCR_SQL2);
-        // QueryResult assResult = assetQuery.execute();
-        // RowIterator assRows = assResult.getRows();
-        recentPageCount = pageRows.getSize();
-        // recentAssetCount = assRows.getSize();
+     public long getRecentAssetCount(Session session,long recentAssetCount) throws Exception {
+        QueryManager qm = session.getWorkspace().getQueryManager();
+
+        Calendar yesterday = Calendar.getInstance();
+        yesterday.add(Calendar.HOUR, -24);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+        String dateStr = sdf.format(yesterday.getTime());
+
+        
+        String assetQueryStr = "SELECT * FROM [dam:Asset] AS asset " +
+                      "WHERE asset.[jcr:created] >= CAST('" + dateStr + "' AS DATE) " +
+                      "AND ISDESCENDANTNODE(asset, '/content/dam/chd')";
+
+        Query assetQuery = qm.createQuery(assetQueryStr, Query.JCR_SQL2);
+        QueryResult assResult = assetQuery.execute();
+        RowIterator assRows = assResult.getRows();
+        return assRows.getSize();
     }
 
     private void addIssue(List<Map<String, String>> issues, String type, String message, String status) {
