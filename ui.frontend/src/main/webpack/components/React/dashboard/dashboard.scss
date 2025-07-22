@@ -75,7 +75,7 @@ a {
             gap: 16px;
 
             .left {
-                flex: 0 0 calc(55% - 10.66px);
+                flex: 0 0 calc(70% - 8px);
                 display: flex;
                 flex-wrap: wrap;
             }
@@ -87,7 +87,7 @@ a {
             }
 
             .right {
-                flex: 0 0 calc(30% - 10.66px);
+                flex: 0 0 calc(30% - 8px);
                 display: flex;
                 flex-direction: column;
             }
@@ -121,10 +121,6 @@ a {
                     gap: 12px;
                     border-radius: 8px;
 
-
-
-
-
                     .ch-dashboard__widget-icon {
                         width: 48px;
                         height: 48px;
@@ -150,8 +146,11 @@ a {
 
                     }
 
+                 
+                }
 
-
+                .ch-dashboard__widget:nth-last-child(-n+4) {
+                         flex: 1 1 calc((100% - 48px) / 4);
                 }
             }
 
