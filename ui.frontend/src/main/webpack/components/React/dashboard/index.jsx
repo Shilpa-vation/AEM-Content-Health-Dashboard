@@ -52,9 +52,10 @@ export default function Dashboard() {
     }
   }, [tabActive]);
 
-  const fetchData = async () => {
+  const fetchData = async (value1,value2) => {
     try {
-      const apiData = await fetch("http://localhost:4502/bin/content-health-audit");
+      const query = `?value1=${encodeURIComponent(value1)}&value2=${encodeURIComponent(value2)}`;
+      const apiData = await fetch("http://localhost:4502/bin/content-health-audit" + query);
       const data = await apiData.json();
       setRawData(data);
       updateWidgets(data);
@@ -93,7 +94,19 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    fetchData();
+    //document.addEventListener("DOMContentLoaded", () => {
+  const el = document.getElementById("ch-dashboard-attr");
+   if (!el) {
+    console.warn("Element #ch-dashboard-attr not found");
+    return;
+  }
+    const value1 = el.dataset.siterootpath;
+    const value2 = el.dataset.damrootpath;
+    console.log(el?.dataset?.siterootpath);
+    fetchData(value1,value2);
+//});
+
+     
   }, []);
 
   const updateWidgets = (data) => {

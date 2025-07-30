@@ -11,11 +11,21 @@
                 jcr:primaryType="nt:unstructured"
                 sling:resourceType="granite/ui/components/coral/foundation/container">
                 <items jcr:primaryType="nt:unstructured">
-                    <text
+                    <siteRootPath
                         jcr:primaryType="nt:unstructured"
-                        sling:resourceType="granite/ui/components/coral/foundation/form/textfield"
-                        fieldLabel="Text"
-                        name="./text"/>
+                        sling:resourceType="granite/ui/components/coral/foundation/form/pathfield"
+                        fieldLabel="SiteRootpath"
+                        nodeTypes="[cq:Page]"
+                        rootPath="/content"
+                        name="./siteRootPath"
+                        emptyText="Select a Root Page Path"/>
+                    <damRootPath
+                        jcr:primaryType="nt:unstructured"
+                        sling:resourceType="granite/ui/components/coral/foundation/form/pathfield"
+                        fieldLabel="DAM Root Path"
+                        name="./damRootPath"
+                        rootPath="/content/dam"
+                        emptyText="Select a Root Asset Path" />
                 </items>
             </column>
         </items>

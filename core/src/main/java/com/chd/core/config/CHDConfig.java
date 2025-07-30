@@ -12,5 +12,6 @@ public @interface CHDConfig {
 
    @AttributeDefinition(name = "Asset Page Path", type = AttributeType.STRING)
     String assetRootPath() default "/content/dam/chd";
+;
 
 }

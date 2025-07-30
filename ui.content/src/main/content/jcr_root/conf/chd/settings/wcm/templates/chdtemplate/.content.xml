@@ -6,5 +6,6 @@
         jcr:description="Dashboard to check content health "
         jcr:primaryType="cq:PageContent"
         jcr:title="Content Health Dashboard"
-        status="enabled"/>
+        status="enabled"
+        allowedPaths = "/content(/.*)?"/>
 </jcr:root>

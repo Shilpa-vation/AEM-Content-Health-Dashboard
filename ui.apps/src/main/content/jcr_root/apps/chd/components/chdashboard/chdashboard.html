@@ -1,9 +1,7 @@
+<sly data-sly-use.templates="core/wcm/components/commons/v1/templates.html" />
+<div id="ch-dashboard-attr" data-siterootpath="${properties.siteRootPath}" 
+data-damrootpath="${properties.damRootPath}">
+</div>
 <div class="ch-dashboard">
 </div>
-
-<!-- <div data-sly-use.dashboard="com.chd.core.models.DashboardModel">
-
- <tr data-sly-list="${dashboard.report.pages}">
- ${item.path}
- </tr>
-</div> -->
+<sly data-sly-call="${templates.placeholder @ isEmpty = !text}" />
