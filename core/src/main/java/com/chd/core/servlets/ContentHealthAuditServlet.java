@@ -13,12 +13,14 @@ import com.day.cq.replication.AgentManager;
 import com.day.cq.replication.ReplicationQueue;
 import com.day.cq.wcm.api.Page;
 import com.day.cq.wcm.api.PageManager;
+import com.day.cq.wcm.commons.ReferenceSearch;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.jackrabbit.commons.JcrUtils;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.*;
@@ -27,8 +29,10 @@ import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Modified;
 import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.metatype.annotations.Designate;
 
 import javax.jcr.Node;
+import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.query.Query;
 import javax.jcr.query.QueryManager;
@@ -55,6 +59,7 @@ import org.slf4j.LoggerFactory;
         "sling.servlet.paths=/bin/content-health-audit"
     }
 )
+@Designate(ocd = CHDConfig.class)
 public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
  
     @Reference
@@ -74,12 +79,14 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
     private int ISSUE_COUNT;
     private long recentPageCount = 0;
     private long recentAssetCount = 0;
+    public String configRootPath;
+    public String configdamPath;
 
     @Activate
     @Modified
     protected void activate(CHDConfig config) {
-        this.ROOT_PATH = config.contentRootPath();
-        this.DAM_ROOT_PATH = config.assetRootPath();
+        configRootPath = config.contentRootPath();
+        configdamPath = config.assetRootPath();
     }
 
  
@@ -97,7 +104,7 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         String formattedDate = StringUtils.EMPTY;
         Runtime runtime = Runtime.getRuntime();
         Session session = resolver.adaptTo(Session.class);
-        initializaVar();
+        initializaVar(request);
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             logger.info("Inside resolver");
             PageManager pageManager = resolver.adaptTo(PageManager.class);
@@ -153,6 +160,12 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         widgetReport.put( "totalHeapSize",runtime.totalMemory()/(1024*1024) +" MB");     // Current allocated heap
         widgetReport.put("freeHeapSize",runtime.freeMemory()/(1024*1024) +" MB"); 
         try {
+            widgetReport.put("authorNumbers", getEditingAuthors(session).size());
+        } catch (RepositoryException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        try {
             widgetReport.put("recentPageCount",  getRecentPageCount(session,recentPageCount));
             widgetReport.put("recentAssetCount",  getRecentAssetCount(session,recentAssetCount));
         } catch (Exception e) {
@@ -172,10 +185,14 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         response.getWriter().write(gson.toJson(report));
     }
 
-    private void initializaVar(){
+    private void initializaVar(SlingHttpServletRequest request){
         UNPUBLISHED_PAGES_COUNT = 0;
         TOTAL_PAGES_COUNT = 0;
         ISSUE_COUNT = 0;
+        this.ROOT_PATH = request.getParameter("value1") != null ? request.getParameter("value1") : configRootPath;
+        this.DAM_ROOT_PATH = request.getParameter("value2") != null ? request.getParameter("value2") : configdamPath;
+        
+
     }
  
     private void checkMetadata(ValueMap props, List<Map<String, String>> issues) {
@@ -354,8 +371,15 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         for (Resource assetRes : damRoot.getChildren()) {
             Asset asset = assetRes.adaptTo(Asset.class);
             if (asset != null) {
-                AssetReferenceSearch search = new AssetReferenceSearch(assetRes.adaptTo(Node.class), ROOT_PATH, resolver);
-                Map<String, Asset> refs = search.search();
+                // AssetReferenceSearch search = new AssetReferenceSearch(assetRes.adaptTo(Node.class), ROOT_PATH, resolver);
+                // Map<String, Asset> refs = search.search();
+                ReferenceSearch refSearch = new ReferenceSearch();
+                refSearch.setSearchRoot("/content"); // where to look for references
+                refSearch.setExact(true);
+                refSearch.setHollow(false);
+
+                Map<String, ReferenceSearch.Info> refs = refSearch.search(resolver, assetRes.getPath());
+
                 if (refs.isEmpty()) {
                     staleAssets.add(asset);
                 }
@@ -429,7 +453,7 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         return pageRows.getSize();
     }
 
-     public long getRecentAssetCount(Session session,long recentAssetCount) throws Exception {
+    public long getRecentAssetCount(Session session,long recentAssetCount) throws Exception {
         QueryManager qm = session.getWorkspace().getQueryManager();
 
         Calendar yesterday = Calendar.getInstance();
@@ -447,7 +471,30 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         RowIterator assRows = assResult.getRows();
         return assRows.getSize();
     }
+    
+    public List<String> getEditingAuthors(Session session) throws RepositoryException {
+    List<String> authors = new ArrayList<>();
 
+    Node home = session.getNode("/home/users");
+    for (Node groupNode : JcrUtils.getChildNodes(home)) {
+        if (groupNode.hasNode("profile")) {
+            Node profile = groupNode.getNode("profile");
+            if (profile.hasProperty("cq:groups")) {
+                String[] groups = profile.getProperty("cq:groups").getString().split(",");
+                for (String group : groups) {
+                    if (group.contains("content-authors") || group.contains("authors")) {
+                        authors.add(groupNode.getName());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    return authors;
+}
+
+    
     private void addIssue(List<Map<String, String>> issues, String type, String message, String status) {
         Map<String, String> issue = new HashMap<>();
         ISSUE_COUNT++;

@@ -3,4 +3,6 @@
     <filter root="/apps/chd/clientlibs"/>
     <filter root="/apps/chd/components"/>
     <filter root="/apps/chd/i18n"/>
+    <filter root="/apps/chd/config"/> 
+    
 </workspaceFilter>

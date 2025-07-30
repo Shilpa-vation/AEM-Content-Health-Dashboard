@@ -15,19 +15,7 @@
   ~ limitations under the License.
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
 <workspaceFilter version="1.0">
-    <!-- Custom application code and configurations -->
-    <filter root="/apps/chd"/>
-
-    <!-- OSGi configurations -->
-    <filter root="/apps/chd/config"/>
-    <filter root="/apps/chd/osgiconfig/config"/>
-    <filter root="/apps/chd/config.author"/>
-    <filter root="/apps/chd/config.publish"/>
-
     <!-- Subpackages (if applicable) -->
     <filter root="/apps/chd-packages"/>
     <filter root="/apps/chd-vendor-packages"/>
-
-    <!-- Context-aware configurations -->
-    <filter root="/conf/chd"/>
 </workspaceFilter>
