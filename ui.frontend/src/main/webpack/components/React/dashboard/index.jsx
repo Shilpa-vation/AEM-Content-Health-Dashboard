@@ -54,8 +54,9 @@ export default function Dashboard() {
 
   const fetchData = async (value1,value2) => {
     try {
+      const host = window.location.origin;
       const query = `?value1=${encodeURIComponent(value1)}&value2=${encodeURIComponent(value2)}`;
-      const apiData = await fetch("http://localhost:4502/bin/content-health-audit" + query);
+      const apiData = await fetch(host + "/bin/content-health-audit" + query);
       const data = await apiData.json();
       setRawData(data);
       updateWidgets(data);
