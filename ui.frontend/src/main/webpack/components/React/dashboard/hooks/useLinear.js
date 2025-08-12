@@ -2,42 +2,42 @@ import { useMemo } from 'react';
 
 export default function useLinear(data = []) {
   const linears = useMemo(() => {
-    if (!Array.isArray(data) || data.length === 0) return [];
+    const allTypes = ['metadata', 'seo', 'audit', 'workflow', 'brokenlinks'];
+
+    const colors = {
+      metadata: { bg: '#FFF8F3', color: '#FFB780' },
+      seo: { bg: '#EEEDFF', color: '#766FFF' },
+      audit: { bg: '#F8E7FE', color: '#B90EF2' },
+      workflow: { bg: '#FFF3F3', color: '#FF8082' },
+      brokenlinks: { bg: '#F1FFF9', color: '#6FFFC3' },
+    };
+
+    if (!Array.isArray(data) || data.length === 0) {
+      return allTypes.map(name => ({
+        name,
+        count: 0,
+        width: 0,
+        bg: colors[name].bg,
+        color: colors[name].color,
+      }));
+    }
 
     const typeCounts = data.reduce((acc, item) => {
       acc[item.type] = (acc[item.type] || 0) + 1;
       return acc;
     }, {});
 
-    return Object.entries(typeCounts).map(([key, value]) => ({
-      name: key,
-      count: value,
-      width: (value / data.length) * 100,
-      bg:
-        key === 'metadata'
-          ? '#FFF8F3'
-          : key === 'seo'
-          ? '#EEEDFF'
-          : key === 'audit'
-          ? '#F8E7FE'
-          : key === 'workflow'
-          ? '#FFF3F3'
-          : key === 'brokenlinks'
-          ? '#F1FFF9'
-          : '#EEF7EE',
-      color:
-        key === 'metadata'
-          ? '#FFB780'
-          : key === 'seo'
-          ? '#766FFF'
-          : key === 'audit'
-          ? '#B90EF2'
-          : key === 'workflow'
-          ? '#FF8082'
-          : key === 'brokenlinks'
-          ? '#6FFFC3'
-          : '#4CAF50',
-    }));
+    return allTypes.map(name => {
+      const count = typeCounts[name] || 0;
+      return {
+        name,
+        count,
+        width: (count / data.length) * 100,
+        bg: colors[name].bg,
+        color: colors[name].color,
+      };
+    });
   }, [data]);
+
   return linears;
 }

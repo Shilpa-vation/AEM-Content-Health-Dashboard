@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import useLinear from './hooks/useLinear';
 
 export default function Select({ selectType, data, handleFilter, selectedValue }) {
-    console.log("selectedValue", selectedValue)
     const lineData = useLinear(data);
     const [selectData, setSelectData] = useState([]);
 
