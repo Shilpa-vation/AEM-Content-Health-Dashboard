@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Widget from "./widget";
 import Grid from "./grid";
 import Linear from "./linear";
@@ -40,6 +40,10 @@ export default function Dashboard() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [daysFilter, setDaysFilter] = useState("all");
+  const [attr, setAttr] = useState();
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState(false);
+  const notifRef = useRef(null);
 
 
   useEffect(() => {
@@ -52,7 +56,26 @@ export default function Dashboard() {
     }
   }, [tabActive]);
 
-  const fetchData = async (value1,value2) => {
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
+
+
+  const fetchData = async (value1, value2) => {
     try {
       const host = window.location.origin;
       const query = `?value1=${encodeURIComponent(value1)}&value2=${encodeURIComponent(value2)}`;
@@ -82,10 +105,21 @@ export default function Dashboard() {
           : '',
         status: asset?.status || 'UNKNOWN'
       })) || [];
-
       setRawDataSites(sitesDataByIssues.flat() || []);
       setRowData(sitesDataByIssues.flat() || []);
-      setRawDataAssets(assetsData)
+      setRawDataAssets(assetsData);
+
+      if (sitesDataByIssues.flat()?.length > 0) {
+        const uniqueStatuses = [
+          ...new Set(
+            sitesDataByIssues.flat()
+              .map(item => item.status?.toLowerCase())
+              .filter(Boolean)
+          )
+        ];
+        setError(uniqueStatuses.includes("error"));
+        setOpen(uniqueStatuses.includes("error"))
+      }
 
 
     }
@@ -96,18 +130,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     //document.addEventListener("DOMContentLoaded", () => {
-  const el = document.getElementById("ch-dashboard-attr");
-   if (!el) {
-    console.warn("Element #ch-dashboard-attr not found");
-    return;
-  }
+    const el = document.getElementById("ch-dashboard-attr");
+    if (!el) {
+      console.warn("Element #ch-dashboard-attr not found");
+      return;
+    }
     const value1 = el.dataset.siterootpath;
     const value2 = el.dataset.damrootpath;
-    console.log(el?.dataset?.siterootpath);
-    fetchData(value1,value2);
-//});
+    setAttr({
+      "value1": value1 || "",
+      "value2": value2 || "",
+    })
+    fetchData(value1, value2);
+    //});
 
-     
   }, []);
 
   const updateWidgets = (data) => {
@@ -181,9 +217,9 @@ export default function Dashboard() {
     setRowData(filtered);
   };
 
-  if(Object.keys(rawData).length === 0){
+  if (Object.keys(rawData).length === 0) {
     return (
-      <Loader/>
+      <Loader />
     )
   }
 
@@ -192,7 +228,40 @@ export default function Dashboard() {
       <div class="ch-dashboard__header">
         <div class="ch-dashboard__container">
           <div className="ch-dashboard__header-content">
-            <h1 className="ch-dashboard__header-title">Health Dashboard</h1><div title="Report Generated At" className="fetch-time"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000"><path d="M200-640h560v-80H200v80Zm0 0v-80 80Zm0 560q-33 0-56.5-23.5T120-160v-560q0-33 23.5-56.5T200-800h40v-80h80v80h320v-80h80v80h40q33 0 56.5 23.5T840-720v227q-19-9-39-15t-41-9v-43H200v400h252q7 22 16.5 42T491-80H200Zm520 40q-83 0-141.5-58.5T520-240q0-83 58.5-141.5T720-440q83 0 141.5 58.5T920-240q0 83-58.5 141.5T720-40Zm67-105 28-28-75-75v-112h-40v128l87 87Z" /></svg>{formatDateTime(rawData.generatedAt)}</div>
+            <h1 className="ch-dashboard__header-title">Health Dashboard</h1>
+            <div className="ch-dashboard__header-right">
+              <p title="Report Generated At" className="fetch-time">
+                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000"><path d="M200-640h560v-80H200v80Zm0 0v-80 80Zm0 560q-33 0-56.5-23.5T120-160v-560q0-33 23.5-56.5T200-800h40v-80h80v80h320v-80h80v80h40q33 0 56.5 23.5T840-720v227q-19-9-39-15t-41-9v-43H200v400h252q7 22 16.5 42T491-80H200Zm520 40q-83 0-141.5-58.5T520-240q0-83 58.5-141.5T720-440q83 0 141.5 58.5T920-240q0 83-58.5 141.5T720-40Zm67-105 28-28-75-75v-112h-40v128l87 87Z" /></svg>{formatDateTime(rawData.generatedAt)}
+              </p>
+              <div ref={notifRef}>
+                <button
+                  onClick={() => setOpen(!open)}
+                  className="notification"
+                  type="button"
+                >
+                  <svg
+                    className="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1phnduy"
+                    focusable="false"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M19.29 17.29 18 16v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5S10.5 3.17 10.5 4v.68C7.63 5.36 6 7.92 6 11v5l-1.29 1.29c-.63.63-.19 1.71.7 1.71h13.17c.9 0 1.34-1.08.71-1.71M16 17H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5zm-4 5c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2"></path>
+                  </svg>
+
+                  {error && <span className="dot"></span>}
+
+                  {open && error && (
+                    <div className="notification_content">
+                      <svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1phnduy" focusable="false" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5.99 19.53 19H4.47zM2.74 18c-.77 1.33.19 3 1.73 3h15.06c1.54 0 2.5-1.67 1.73-3L13.73 4.99c-.77-1.33-2.69-1.33-3.46 0zM11 11v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1m0 5h2v2h-2z"></path></svg>
+                      <h5>Critical issues detected in the latest dashboard report.</h5>
+                      <p>Please review and resolve them as soon as possible to ensure content integrity and compliance.</p>
+                    </div>
+                  )}
+                </button>
+              </div>
+
+              <a href={`${window.location.origin}/bin/content-health-audit?${attr.value1}=/content/site&${attr.value2}=/content/dam/site&format=excel`} className="btn" type="button">Export to Excel</a>
+            </div>
           </div>
         </div>
       </div >

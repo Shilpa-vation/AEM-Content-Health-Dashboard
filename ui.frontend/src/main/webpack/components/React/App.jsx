@@ -3,7 +3,6 @@ import { createRoot } from "react-dom/client";
 import Dashboard from "./dashboard/index";
 
 function renderDashboard() {
-  console.log("Rendering Dashboard...");
   const target = document.querySelector('.ch-dashboard');
   if (target) {
     const reactContainer = document.createElement('div');
