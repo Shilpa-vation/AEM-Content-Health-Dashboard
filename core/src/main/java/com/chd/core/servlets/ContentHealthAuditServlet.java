@@ -17,6 +17,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.*;
@@ -32,6 +36,8 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import javax.servlet.Servlet;
 import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
+
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.text.SimpleDateFormat;
@@ -82,6 +88,7 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
     @Override
     protected void doGet(SlingHttpServletRequest request, SlingHttpServletResponse response)
             throws ServletException, IOException {
+        String format = request.getParameter("format");
 
         ResourceResolver resolver = request.getResourceResolver();
         Map<String, Object> report = new HashMap<>();
@@ -158,10 +165,13 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         report.put("widges", widges);
         report.put("pages", pages);
         report.put("assets", assetAnalysis);
-
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        response.getWriter().write(gson.toJson(report));
+        if ("excel".equalsIgnoreCase(format)) {
+            generateExcelReport(report, response);
+        } else {
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write(gson.toJson(report));
+        }
     }
 
     private void initializaVar(SlingHttpServletRequest request) {
@@ -327,4 +337,117 @@ public class ContentHealthAuditServlet extends SlingAllMethodsServlet {
         issue.put("status", status);
         issues.add(issue);
     }
+    
+    private void generateExcelReport(Map<String, Object> report, SlingHttpServletResponse response) throws IOException {
+    Workbook workbook = new XSSFWorkbook();
+
+    // Summary Sheet
+    Sheet summarySheet = workbook.createSheet("Summary");
+    int rowIdx = 0;
+    for (Map.Entry<String, Object> entry : report.entrySet()) {
+        if (entry.getValue() instanceof List || entry.getValue() instanceof Map) continue;
+        Row row = summarySheet.createRow(rowIdx++);
+        row.createCell(0).setCellValue(entry.getKey());
+        row.createCell(1).setCellValue(String.valueOf(entry.getValue()));
+    }
+
+    // Pages Sheet
+    Sheet pagesSheet = workbook.createSheet("Pages");
+    List<Map<String, Object>> pages = (List<Map<String, Object>>) report.get("pages");
+    if (pages != null && !pages.isEmpty()) {
+        Row header = pagesSheet.createRow(0);
+        header.createCell(0).setCellValue("Path");
+        header.createCell(1).setCellValue("Title");
+        header.createCell(2).setCellValue("Last Modified");
+        header.createCell(3).setCellValue("Issue Count");
+        header.createCell(4).setCellValue("Issue Descriptions");
+
+        int i = 1;
+        for (Map<String, Object> page : pages) {
+            Row row = pagesSheet.createRow(i++);
+            row.createCell(0).setCellValue(String.valueOf(page.get("path")));
+            row.createCell(1).setCellValue(String.valueOf(page.get("title")));
+            row.createCell(2).setCellValue(String.valueOf(page.get("lastModified")));
+            List<Map<String, String>> issues = (List<Map<String, String>>) page.get("issues");
+            row.createCell(3).setCellValue(issues != null ? issues.size() : 0);
+            // Collect issue descriptions
+            String issueSummary = "";
+            if (issues != null && !issues.isEmpty()) {
+                List<String> descriptions = new ArrayList<>();
+                for (Map<String, String> issue : issues) {
+                    String desc = issue.get("message");
+                    if (desc != null) {
+                        descriptions.add(desc);
+                    }
+                }
+                issueSummary = String.join(", ", descriptions);
+            }
+            row.createCell(4).setCellValue(issueSummary);
+
+            }
+    }
+
+    // Existing Assets Sheet
+Sheet assetSheet = workbook.createSheet("Assets");
+Map<String, Object> assets = (Map<String, Object>) report.get("assets");
+
+if (assets != null) {
+    int r = 0;
+    for (Map.Entry<String, Object> entry : assets.entrySet()) {
+        Row row = assetSheet.createRow(r++);
+        row.createCell(0).setCellValue(entry.getKey());
+        row.createCell(1).setCellValue(String.valueOf(entry.getValue()));
+    }
+
+    // Create Asset Issues Sheet
+    Sheet assetIssuesSheet = workbook.createSheet("Asset Issues");
+    Row header = assetIssuesSheet.createRow(0);
+    header.createCell(0).setCellValue("Path");
+    header.createCell(1).setCellValue("Title");
+    header.createCell(2).setCellValue("Status");
+    header.createCell(3).setCellValue("Messages");
+
+    int i = 1;
+    List<Map<String, Object>> issues = (List<Map<String, Object>>) assets.get("issues");
+    if (issues != null) {
+        for (Map<String, Object> issue : issues) {
+            if ("assets".equals(issue.get("type"))) {
+                Row row = assetIssuesSheet.createRow(i++);
+                row.createCell(0).setCellValue(String.valueOf(issue.get("path")));
+                row.createCell(1).setCellValue(String.valueOf(issue.get("title")));
+                row.createCell(2).setCellValue(String.valueOf(issue.get("status")));
+
+                List<String> messages = (List<String>) issue.get("messages");
+                String messageSummary = messages != null ? String.join(", ", messages) : "";
+                row.createCell(3).setCellValue(messageSummary);
+            }
+        }
+    }
+}
+
+    
+
+    // Widgets Sheet
+    Sheet widgetSheet = workbook.createSheet("Widgets");
+    List<Map<String, Object>> widgets = (List<Map<String, Object>>) report.get("widges");
+    if (widgets != null && !widgets.isEmpty()) {
+        int r = 0;
+        for (Map<String, Object> widget : widgets) {
+            for (Map.Entry<String, Object> entry : widget.entrySet()) {
+                Row row = widgetSheet.createRow(r++);
+                row.createCell(0).setCellValue(entry.getKey());
+                row.createCell(1).setCellValue(String.valueOf(entry.getValue()));
+            }
+        }
+    }
+
+    response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    response.setHeader("Content-Disposition", "attachment; filename=report.xlsx");
+
+    try (ServletOutputStream out = response.getOutputStream()) {
+        workbook.write(out);
+        workbook.close();
+    }
+}
+
 }
