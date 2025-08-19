@@ -260,7 +260,7 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              <a href={`${window.location.origin}/bin/content-health-audit?${attr.value1}=/content/site&${attr.value2}=/content/dam/site&format=excel`} className="btn" type="button">Export to Excel</a>
+              <a href={`${window.location.origin}/bin/content-health-audit?value1=${attr.value1}&value2=${attr.value2}&format=excel`} className="btn" type="button">Export to Excel</a>
             </div>
           </div>
         </div>

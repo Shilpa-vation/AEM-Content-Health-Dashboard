@@ -13,7 +13,7 @@
       "name": "Debug AEM Publish",
       "request": "attach",
       "hostName": "localhost",
-      "port": 5006
+      "port": 4503
     }
   ]
 }
