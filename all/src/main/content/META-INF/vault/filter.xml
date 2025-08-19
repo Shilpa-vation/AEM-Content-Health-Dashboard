@@ -15,6 +15,7 @@
   ~ limitations under the License.
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
 <workspaceFilter version="1.0">
+    <!-- Subpackages (if applicable) -->
     <filter root="/apps/chd-packages"/>
     <filter root="/apps/chd-vendor-packages"/>
 </workspaceFilter>

@@ -79,6 +79,12 @@ Import-Package: javax.annotation;version=0.0.0,*
             </plugin>
         </plugins>
     </build>
+    <repositories>
+  <repository>
+    <id>apache-sling</id>
+    <url>https://repository.apache.org/content/groups/sling</url>
+  </repository>
+</repositories>
 
     <dependencies>
         <dependency>
@@ -140,5 +146,12 @@ Import-Package: javax.annotation;version=0.0.0,*
             <version>1.4.14</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+  <groupId>org.apache.sling</groupId>
+  <artifactId>org.apache.sling.commons.log</artifactId>
+  <version>4.0.4</version> <!-- Confirm availability -->
+  <scope>provided</scope>
+</dependency>
+
     </dependencies>
 </project>

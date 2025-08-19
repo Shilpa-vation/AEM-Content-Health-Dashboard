@@ -32,7 +32,7 @@ Or to deploy it to a publish instance, run
 
 Or alternatively
 
-    mvn clean install -PautoInstallSinglePackage -Daem.port=4503
+    mvn clean install -PautoInstallSinglePackage -Daem.port=8080
 
 Or to deploy only the bundle to the author, run
 
@@ -77,7 +77,7 @@ flag.
 | `it.author.url`       | URL of the author instance                          | `http://localhost:4502` |
 | `it.author.user`      | Admin user for the author instance                  | `admin`                 |
 | `it.author.password`  | Password of the admin user for the author instance  | `admin`                 |
-| `it.publish.url`      | URL of the publish instance                         | `http://localhost:4503` |
+| `it.publish.url`      | URL of the publish instance                         | `http://localhost:8080` |
 | `it.publish.user`     | Admin user for the publish instance                 | `admin`                 |
 | `it.publish.password` | Password of the admin user for the publish instance | `admin`                 |
 
