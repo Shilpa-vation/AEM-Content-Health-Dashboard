@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <workspaceFilter version="1.0">
-    <filter root="/apps/chd/clientlibs"/>
-    <filter root="/apps/chd/components"/>
-    <filter root="/apps/chd/i18n"/>
-    <filter root="/apps/chd/config"/> 
+    <filter root="/apps/chd/clientlibs" mode="merge"/>
+    <filter root="/apps/chd/components" mode="merge"/>
+    <filter root="/apps/chd/i18n" mode="merge"/>
+    <filter root="/apps/chd/config" mode="merge"/> 
     
 </workspaceFilter>
